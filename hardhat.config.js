@@ -21,7 +21,7 @@ module.exports = {
     sources: "./contracts",
     tests: "./test",
     cache: "./cache",
-    artifacts: "./front/contracts"
+    artifacts: "./front/src/contracts"
   },
   solidity: "0.8.4",
 };
