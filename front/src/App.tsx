@@ -1,24 +1,36 @@
 import React, { useEffect, useState } from 'react';
 import './App.css';
 
+enum Move {
+  Null, Rock, Paper, Scissors, Spock, Lizard
+}
+
 interface gameStatus {
   userAddress: string,
   userBalance: number,
-  game: boolean,
+  openMenu: boolean,
+  startNewGame: boolean,
+  opponentAddress: string,
   j1Address: string,
   j2Address: string,
   stake: number,
-  c2: number
+  c1: Move,
+  c1Hash: string,
+  c2: Move,
 };
 
 const App = () => {
   const [gameStatus, setGameStatus] = useState<gameStatus>({
     userAddress: "",
     userBalance: 0,
-    game: false,
+    openMenu: false,
+    startNewGame: false,
+    opponentAddress: "",
     j1Address: "",
     j2Address: "",
     stake: 0,
+    c1: 0,
+    c1Hash: "",
     c2: 0
   });
 
@@ -31,20 +43,33 @@ const App = () => {
   const connectWallet: React.MouseEventHandler<HTMLButtonElement> | undefined = () => {
     setGameStatus({ 
       ...gameStatus, 
-      userAddress: "0xC",
+      userAddress: "0xA",
       userBalance: 10,
     });
   }
 
   const getContractInfos = () => {
-    console.log("getContractInfos")
-    setGameStatus({ ...gameStatus, game: true, j1Address: "0xB", j2Address: "0xC", c2: 0 });
+    console.log("getContractInfos");
+    setGameStatus({ ...gameStatus, openMenu: true, j1Address: "0xB", j2Address: "0xC", c2: 0 });
   }
 
   const startNewGame = () => {
     console.log("Start new game");
+    setGameStatus({ ...gameStatus, startNewGame: true });
+  }
+  
+  const handleChange = (e: React.ChangeEvent<HTMLInputElement> | React.ChangeEvent<HTMLSelectElement>) => {
+    const { name, value } = e.target;
+    setGameStatus(prevGameStatus => ({
+      ...prevGameStatus,
+      [name]: value,
+    }));
+  };
+  
+  const createGameContract = () => {
     //Hash j1 choice
     //Deploy contract with constructor c1Hash, j2Address, msg.value = stake + contract creation gas
+    console.log(`deploy contract construct: c1: ${gameStatus.c1}, c1Hash: hash, opponent: ${gameStatus.opponentAddress}, stake: ${gameStatus.stake}`)
   }
 
   const j2Answer = () => {
@@ -53,11 +78,19 @@ const App = () => {
 
   const solve = () => {
     //Call contract solve function with c1 move and salt
+    //Update userBalance
   }
 
   const claimTimeout = () => {
     console.log("Claim timeout")
     // call j1 or j2 timeout depending on userAddress
+  }
+
+  const columnDisplay = {
+    display: "flex", flexDirection: "column"
+  } as const;
+  const spaceBetween = {
+    display: "flex", justifyContent: "space-between"
   }
 
   console.log(gameStatus)
@@ -67,7 +100,7 @@ const App = () => {
         <h1>
           Rock Paper Scissors Lizard Spock
         </h1>
-        {gameStatus.game ?
+        {gameStatus.openMenu ?
           <div>
             <div>
               <h2>Player Status</h2>
@@ -112,8 +145,48 @@ const App = () => {
                       </div>
                       :
                       <div>
-                        <p>You are not involved in any game</p>
-                        <button onClick={startNewGame}>Start a new game</button>
+                        {gameStatus.startNewGame === false ?
+                          <div>
+                            <p>You are not involved in any game</p>
+                            <button onClick={startNewGame}>Start a new game</button>
+                          </div>
+                          :
+                          <div style={columnDisplay}>
+                            <label style={spaceBetween}>Select your move:
+                              <select 
+                                name="c1" 
+                                id="c1" 
+                                onChange={handleChange}
+                                required
+                              >
+                                <option value="1">Rock</option>
+                                <option value="2">Paper</option>
+                                <option value="3">Scissors</option>
+                                <option value="4">Lizard</option>
+                                <option value="5">Spock</option>
+                              </select>
+                            </label>
+                            <label style={spaceBetween}>Enter your opponent address:
+                              <input 
+                                type="string" 
+                                name="opponentAddress" 
+                                id="opponentAddress" 
+                                onChange={handleChange}
+                                required
+                              />
+                            </label>
+                            <label style={spaceBetween}>Enter a stake:
+                              <input 
+                                type="string" 
+                                name="stake" 
+                                id="stake" 
+                                onChange={handleChange}
+                                required
+                              />
+                            </label>
+                            <button onClick={() => createGameContract()}>Start new game</button>
+                          </div>
+                        }
                       </div>
                     }
                   </div>
