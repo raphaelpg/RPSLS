@@ -1,4 +1,5 @@
 import React, { useEffect, useState } from 'react';
+import Web3 from 'web3';
 import './App.css';
 
 enum Move {
@@ -15,7 +16,8 @@ interface gameStatus {
   j2Address: string,
   stake: number,
   c1: Move,
-  c1Hash: string,
+  salt: number,
+  c1Hash: string | null,
   c2: Move,
 };
 
@@ -30,6 +32,7 @@ const App = () => {
     j2Address: "",
     stake: 0,
     c1: 0,
+    salt: 0,
     c1Hash: "",
     c2: 0
   });
@@ -68,8 +71,10 @@ const App = () => {
   
   const createGameContract = () => {
     //Hash j1 choice
+    const _c1Hash = Web3.utils.soliditySha3({t: 'uint8', v: gameStatus.c1}, {t: 'uint256', v: gameStatus.salt});
+    setGameStatus({ ...gameStatus, c1Hash: _c1Hash });
+    console.log(`deploy contract construct: c1: ${gameStatus.c1}, c1Hash: ${_c1Hash}, opponent: ${gameStatus.opponentAddress}, stake: ${gameStatus.stake}`);
     //Deploy contract with constructor c1Hash, j2Address, msg.value = stake + contract creation gas
-    console.log(`deploy contract construct: c1: ${gameStatus.c1}, c1Hash: hash, opponent: ${gameStatus.opponentAddress}, stake: ${gameStatus.stake}`)
   }
 
   const j2Answer = () => {
@@ -180,6 +185,15 @@ const App = () => {
                                 type="string" 
                                 name="stake" 
                                 id="stake" 
+                                onChange={handleChange}
+                                required
+                              />
+                            </label>
+                            <label style={spaceBetween}>Enter a random positive number:
+                              <input 
+                                type="string" 
+                                name="salt" 
+                                id="salt" 
                                 onChange={handleChange}
                                 required
                               />
