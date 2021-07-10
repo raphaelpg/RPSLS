@@ -25,9 +25,9 @@ contract RPS{
     /** @dev Constructor. Must send the amount at stake when creating the contract. Note that the move and salt must be saved.
      *  @param _c1Hash Must be equal to keccak256(c1,salt) where c1 is the move of the j1.
      */
-    constructor(bytes32 _c1Hash, address payable _j2) payable {
+    constructor(address payable _j1, bytes32 _c1Hash, address payable _j2) payable {
         stake = msg.value; // La mise correspond à la quantité d'ethers envoyés.
-        j1=payable(msg.sender);
+        j1=_j1;
         j2=_j2;
         c1Hash=_c1Hash;
         lastAction=block.timestamp;
@@ -53,18 +53,24 @@ contract RPS{
         require(c2!=Move.Null); // J2 must have played.
         require(msg.sender==j1); // J1 can call this.
         require(keccak256(abi.encodePacked(_c1,_salt))==c1Hash); // Verify the value is the commited one.
-        
+        require(stake != 0); // Prevent reentrancy.
+
         // If j1 or j2 throws at fallback it won't get funds and that is his fault.
         // Despite what the warnings say, we should not use transfer as a throwing fallback would be able to block the contract, in case of tie.
-        if (win(_c1,c2))
-            j1.transfer(2*stake);
-        else if (win(c2,_c1))
-            j2.transfer(2*stake);
-        else {
-            j1.transfer(stake);
-            j2.transfer(stake);
-        }
+        uint reward = stake;
         stake=0;
+        if (win(_c1,c2)) {
+            (bool success, ) = j1.call{value: (2*reward)}("");
+            require(success, "Transfer to j1 failed.");
+        } else if (win(c2,_c1)) {
+            (bool success, ) = j2.call{value: (2*reward)}("");
+            require(success, "Transfer to j2 failed.");
+        } else {
+            (bool success1, ) = j1.call{value: (reward)}("");
+            require(success1, "Transfer to j1 failed.");
+            (bool success2, ) = j2.call{value: (reward)}("");
+            require(success2, "Transfer to j2 failed.");
+        }
     }
     
     /** @dev Let j2 get the funds back if j1 did not play.
@@ -72,8 +78,11 @@ contract RPS{
     function j1Timeout() public {
         require(c2!=Move.Null); // J2 already played.
         require(block.timestamp > lastAction + TIMEOUT); // Timeout time has passed.
-        j2.transfer(2*stake);
+        require(stake != 0);
+        uint reward = stake;
         stake=0;
+        (bool success, ) = j2.call{value: (2*reward)}("");
+        require(success, "Transfer to j2 failed.");
     }
     
     /** @dev Let j1 take back the funds if j2 never play.
@@ -81,8 +90,11 @@ contract RPS{
     function j2Timeout() public {
         require(c2==Move.Null); // J2 has not played.
         require(block.timestamp > lastAction + TIMEOUT); // Timeout time has passed.
-        j1.transfer(stake);
+        require(stake != 0);
+        uint reward = stake;
         stake=0;
+        (bool success, ) = j1.call{value: (2*reward)}("");
+        require(success, "Transfer to j1 failed.");
     }
     
     /** @dev Is this move winning over the other.
@@ -110,5 +122,24 @@ contract Hasher{
      */
     function hash(uint8 _c, uint256 _salt) pure public returns(bytes32) {
         return keccak256(abi.encodePacked(_c,_salt));
+    }
+}
+
+contract RPSFactory {
+    bool public gameOn;
+    address public currentRPSAddress; // Last RPS contract address
+
+    /** @dev Create a RPS game contract. Must send the amount at stake when creating the contract. Note that the move and salt must be saved.
+     *  @param _c1Hash Must be equal to keccak256(c1,salt) where c1 is the move of the j1.
+     */
+    function createRPS (bytes32 _c1Hash, address payable _j2) payable public {
+        if (gameOn) {
+            RPS currentRPS = RPS(currentRPSAddress);
+            uint currentStake = currentRPS.stake();
+            require(currentStake == 0, "Current game not ended");
+        }
+        RPS newRPS = (new RPS){value: msg.value}(payable(msg.sender), _c1Hash, _j2);
+        currentRPSAddress = address(newRPS);
+        gameOn = true;
     }
 }
